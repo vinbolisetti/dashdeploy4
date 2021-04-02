@@ -1,5 +1,6 @@
+import pathlib
+
 from django.shortcuts import render
-import pyodbc
 import pandas as pd
 import numpy as np
 
@@ -19,16 +20,12 @@ def index(request):
 
 
 def app1(request):
-    conn = pyodbc.connect(
-        'Driver={sql server};'
-        'Server=bidm.opentext.com;'
-        'Database=DS_Sales;'
-        'Trusted_Connection=yes;'
-    )
 
-    df = pd.read_sql_query(
-        "SELECT RM.Name as RFxName , RM.RFx_Received_Date__c, RM.RFx_Type__c, RM.Industry_x__c, RM.Opportunity__c, O.Name as AccountName, O.Division__c, O.USD_Price__c, O.StageName, O.Industry__c, O.Account_Country__c, O.Type, RT.Name FROM RFx_Metrics__c RM LEFT JOIN Opportunity O ON RM.Opportunity__c = O.CaseSafeID__c LEFT JOIN RecordType RT ON O.RecordTypeId = RT.Id WHERE RFx_Type__c NOT IN ('Proactive','PQQ (Pre-Qualification Questionnaire)','Cloud Proposal','EU Tender','Price Quote','Other') and RFx_Received_Date__c BETWEEN '2020-07-01' AND '2021-02-28' ORDER BY O.USD_Price__c DESC;",
-        conn)
+    PATH = pathlib.Path(__file__).parent
+    DATA_PATH = PATH.joinpath("../data").resolve()
+
+    df = pd.read_csv(DATA_PATH.joinpath("RFx_Recd1.csv"))
+    countries_df = pd.read_excel(DATA_PATH.joinpath("Country_Code.xlsx"))
 
     df.loc[(df['Division__c'] == 'CEM Sales'), 'Division__c'] = 'CEM'
     df.loc[(df['Division__c'] == 'Indirect Sales'), 'Division__c'] = 'Indirect'
@@ -59,7 +56,6 @@ def app1(request):
     df['Industry__c'] = df['Industry__c'].fillna(0)
     df['Industry__c'] = np.where(df['Industry__c'] == 0, df['Industry_x__c'], df['Industry__c'])
 
-    countries_df = pd.read_excel('C:/Users/vbolisetti/Documents/Weekly Reports for Mark/Others/Country_Code.xlsx')
     df = df.rename(columns={"Account_Country__c": "Country Code"})
     df = df.merge(countries_df, on='Country Code', how='left')
 
